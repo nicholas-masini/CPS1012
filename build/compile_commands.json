@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/home/nicholas_masini/CPS1012_assignment/build",
+  "command": "/bin/gcc-9   -g   -o CMakeFiles/smash.dir/smash.c.o   -c /home/nicholas_masini/CPS1012_assignment/smash.c",
+  "file": "/home/nicholas_masini/CPS1012_assignment/smash.c"
+},
+{
+  "directory": "/home/nicholas_masini/CPS1012_assignment/build",
+  "command": "/bin/gcc-9   -g   -o CMakeFiles/smash.dir/linenoise.c.o   -c /home/nicholas_masini/CPS1012_assignment/linenoise.c",
+  "file": "/home/nicholas_masini/CPS1012_assignment/linenoise.c"
+}
+]

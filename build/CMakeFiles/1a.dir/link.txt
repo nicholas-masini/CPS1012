@@ -1,0 +1,1 @@
+/bin/gcc-9 -g   CMakeFiles/1a.dir/main.c.o  -o 1a 

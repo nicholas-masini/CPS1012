@@ -1,0 +1,1 @@
+/bin/gcc-9 -g   CMakeFiles/CPS1012_project.dir/main.c.o  -o CPS1012_project 

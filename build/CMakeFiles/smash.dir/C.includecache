@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/nicholas_masini/CPS1012_assignment/linenoise.h
+stdlib.h
+-
+
+/home/nicholas_masini/CPS1012_assignment/smash.c
+stdio.h
+-
+stdbool.h
+-
+unistd.h
+-
+stdlib.h
+-
+string.h
+-
+sys/wait.h
+-
+sys/types.h
+-
+limits.h
+-
+linenoise.h
+/home/nicholas_masini/CPS1012_assignment/linenoise.h
+

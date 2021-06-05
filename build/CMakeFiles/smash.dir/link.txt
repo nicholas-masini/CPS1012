@@ -1,0 +1,1 @@
+/bin/gcc-9 -g   CMakeFiles/smash.dir/smash.c.o CMakeFiles/smash.dir/linenoise.c.o  -o smash 
