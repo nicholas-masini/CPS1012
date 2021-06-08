@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <errno.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <limits.h>
@@ -164,6 +166,29 @@ void var_expand(char tokens[20][100], char *var_name, shell *shellV, int i) {
     return;
 }
 
+// Function for pushd command
+int pushd(char *new_dir, char **dir_stack, int *d_pointer) {
+    // Checking if directory exists
+    DIR *dir = opendir(new_dir);
+    if(dir) {
+        (*d_pointer)++;
+        dir_stack[*d_pointer] = new_dir;
+        return 0;
+    } else if(ENOENT == errno) return 1;
+    else return 2;
+}
+
+// Function for popd command
+bool popd(char **dir_stack, int *d_pointer) {
+    // Checking if directory stack is empty
+    if(*d_pointer == -1) return false;
+    else {
+        dir_stack[*d_pointer] = NULL;
+        (*d_pointer)--;
+        return true;
+    }
+}
+
 int main(int argc, char **argv, char **env) {
   
     int i, j, k, l, m, n, o, var_count, q_count, id_count, tc_char, arguments, d_count;
@@ -171,6 +196,9 @@ int main(int argc, char **argv, char **env) {
     char buffer1[50];
     char buffer2[2];
     bool dquotes, var_fail, exist_var, limit_var, expand, assigning_dquotes;
+
+    // Directory Stack
+    char *dir_stack[20] = {0}; 
 
     // Shell variables are initialised
     shell *shellV = malloc(sizeof(shell) * SHELL_VARIABLES_LIMIT);
@@ -189,6 +217,10 @@ int main(int argc, char **argv, char **env) {
     } else {
         shellV[2].val = curwd;
     }
+
+    // Adding CWD to directory stack
+    dir_stack[0] = shellV[2].val;
+    int d_pointer = 0;
 
     init_shellV(&shellV[3], "USERNAME");
     shellV[3].name = "USER";
@@ -511,6 +543,26 @@ int main(int argc, char **argv, char **env) {
                 for(int i = 0; env[i] != NULL; i++) printf("%s\n", env[i]);
             }
         }
+        // pwd
+        else if((strcmp(cmd, "pwd")) == 0) printf("%s\n", dir_stack[d_pointer]);
+        // pushd
+        else if((strcmp(cmd, "pushd")) == 0) {
+            if(arguments == 1) printf("Error: Specify file to push in directory stack\n");
+            else if(arguments > 2) printf("Error: Too many arguments\n");
+            else {
+                int tmp = pushd(tokens[1], dir_stack, &d_pointer);
+                // pushd succeeds
+                if(tmp == 0) {
+                    for(int i = d_pointer; i >= 0; i--) {
+                        printf("%s ", dir_stack[i]);
+                    }
+                    printf("\n");
+                }
+                else if(tmp == 1) printf("Error: Directory does not exist\n");
+                else if(tmp == 2) printf("Error: pushd failed\n");
+            }
+        }
+        // popd
 
         fflush(stdout);
         
@@ -518,7 +570,7 @@ int main(int argc, char **argv, char **env) {
 
 }
 
-// CONTINUE FROM (g) OF INTERNAL COMMANDS
+// DEBUG PROGRAM
 
 // Variable assignment checks:
 // \$USER
