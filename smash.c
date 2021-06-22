@@ -172,7 +172,7 @@ int pushd(char *new_dir, char **dir_stack, int *d_pointer) {
     DIR *dir = opendir(new_dir);
     if(dir) {
         (*d_pointer)++;
-        dir_stack[*d_pointer] = new_dir;
+        strcpy(dir_stack[*d_pointer], new_dir);
         return 0;
     } else if(ENOENT == errno) return 1;
     else return 2;
@@ -180,10 +180,10 @@ int pushd(char *new_dir, char **dir_stack, int *d_pointer) {
 
 // Function for popd command
 bool popd(char **dir_stack, int *d_pointer) {
-    // Checking if directory stack is empty
-    if(*d_pointer == -1) return false;
+    // Checking if directory stack contains only one element
+    if(*d_pointer == 0) return false;
     else {
-        dir_stack[*d_pointer] = NULL;
+        strcpy(dir_stack[*d_pointer], "");
         (*d_pointer)--;
         return true;
     }
@@ -198,7 +198,12 @@ int main(int argc, char **argv, char **env) {
     bool dquotes, var_fail, exist_var, limit_var, expand, assigning_dquotes;
 
     // Directory Stack
-    char *dir_stack[20] = {0}; 
+    char *dir_stack[20];
+    // Initialising the directory stack
+    for(int i = 0; i < 20; i++) {
+        dir_stack[i] = malloc(200);
+        strcpy(dir_stack[i], "");
+    }
 
     // Shell variables are initialised
     shell *shellV = malloc(sizeof(shell) * SHELL_VARIABLES_LIMIT);
@@ -219,7 +224,7 @@ int main(int argc, char **argv, char **env) {
     }
 
     // Adding CWD to directory stack
-    dir_stack[0] = shellV[2].val;
+    strcpy(dir_stack[0], shellV[2].val);
     int d_pointer = 0;
 
     init_shellV(&shellV[3], "USERNAME");
@@ -461,6 +466,7 @@ int main(int argc, char **argv, char **env) {
             if(arguments == 2) {
                 // Free allocated memory
                 free(shellV);
+                for(int i = 0; i < 20; i++) free(dir_stack[i]);
                 printf("Exiting with exit code %d\n", atoi(tokens[1]));
                 exit(atoi(tokens[1]));
             }
@@ -470,6 +476,9 @@ int main(int argc, char **argv, char **env) {
                 printf("Error: Too many arguments");
             }
             else {
+                // Free allocated memory
+                free(shellV);
+                for(int i = 0; i < 20; i++) free(dir_stack[i]);
                 printf("Exiting with exit code %d\n", EXIT_SUCCESS);
                 exit(EXIT_SUCCESS);
             }
@@ -491,6 +500,7 @@ int main(int argc, char **argv, char **env) {
                     // Changing CWD variable
                     if(getcwd(curwd, PATH_MAX) == NULL) printf("getcwd() error");
                     if(!(var_assign("CWD", curwd, shellV, &var_count))) printf("Error when assinging value to variable");
+                    else strcpy(dir_stack[d_pointer], get_shellV_val("CWD", shellV));
                 }
             } else if(arguments > 2) {
                 printf("Error: Too many arguments\n");
@@ -553,16 +563,39 @@ int main(int argc, char **argv, char **env) {
                 int tmp = pushd(tokens[1], dir_stack, &d_pointer);
                 // pushd succeeds
                 if(tmp == 0) {
-                    for(int i = d_pointer; i >= 0; i--) {
-                        printf("%s ", dir_stack[i]);
-                    }
+                    for(int i = d_pointer; i >= 0; i--) printf("%s ", dir_stack[i]);
                     printf("\n");
+                    // Changing directories and CWD value
+                    var_assign("CWD", dir_stack[d_pointer], shellV, &var_count);
+                    if(chdir(dir_stack[d_pointer]) != 0) perror("chdir() failed");
                 }
                 else if(tmp == 1) printf("Error: Directory does not exist\n");
                 else if(tmp == 2) printf("Error: pushd failed\n");
             }
         }
         // popd
+        else if((strcmp(cmd, "popd")) == 0) {
+            if(arguments > 1) printf("Error: Too many arguments\n");
+            else if(popd(dir_stack, &d_pointer)) {
+                for(int i = d_pointer; i >= 0; i--) printf("%s ", dir_stack[i]);
+                printf("\n");
+                // Changing directories and CWD value
+                var_assign("CWD", dir_stack[d_pointer], shellV, &var_count);
+                if(chdir(dir_stack[d_pointer]) != 0) perror("chdir() failed");
+            } else printf("Error: Cannot remove CWD from directory stack\n");
+        }
+        // dirs
+        else if((strcmp(cmd, "dirs")) == 0) {
+            if(arguments > 1) printf("Error: Too many arguments\n");
+            else {
+                for(int i = d_pointer; i >= 0; i--) printf("%s ", dir_stack[i]);
+                printf("\n");
+            }
+        }
+        // source
+        else if((strcmp(cmd, "source")) == 0) {
+
+        }
 
         fflush(stdout);
         
@@ -570,8 +603,4 @@ int main(int argc, char **argv, char **env) {
 
 }
 
-// DEBUG PROGRAM
-
-// Variable assignment checks:
-// \$USER
-// $USER,
+// CONTINUE FROM SOURCE COMMAND
