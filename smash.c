@@ -34,15 +34,6 @@ bool delim(char character) {
     else return false;
 }
 
-// Function used to remove newline operator from internal command token, created by user 'quzah' on the online web page of the following link:
-// https://cboard.cprogramming.com/c-programming/70320-how-remove-newline-string.html
-char *choppy(char *s) {
-    char *n = malloc(strlen(s ? s : "\n"));
-    if(s) strcpy(n, s);
-    n[strlen(n)-1]='\0';
-    return n;
-}
-
 // Function is called on startup to initialise shell variables
 void init_shellV(shell *shellV, char *var_name) {  
         shellV->name = var_name;
@@ -594,13 +585,43 @@ int main(int argc, char **argv, char **env) {
         }
         // source
         else if((strcmp(cmd, "source")) == 0) {
-
+            if(arguments == 1) printf("Error: Specify file to read\n");
+            else if(arguments > 2) printf("Error: Too many arguments\n");
+            else {
+                FILE *fp3;
+                fp3 = fopen(tokens[1], "r");
+                if(!fp3) printf("Error: File not found in CWD\n");
+                else {
+                    char content[1000];
+                    while(fgets(content, 1000, fp3)!=NULL) system(content);
+                    fclose(fp3);
+                }
+            }
+        }
+        // Searching for External Commands
+        else {
+            pid_t pid = fork();
+            if(pid == -1) perror("fork() failed\n");
+            else if(pid == 0) {
+                char *args[20];
+                for(int i = 0; tokens[i][0] != '\000'; i++) args[i] = tokens[i];
+                if(execvp(args[0], args) == -1){
+                    perror("execv() failed\n");
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                int status;
+                if(waitpid(pid, &status, 0) == -1) {
+                    perror("wait() failed");
+                    exit(EXIT_FAILURE);
+                }
+            }
         }
 
         fflush(stdout);
-        
-    }
+
+    }   
 
 }
 
-// CONTINUE FROM SOURCE COMMAND
+// get_shellV_val("PATH", shellV)
