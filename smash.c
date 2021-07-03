@@ -152,8 +152,6 @@ void var_expand(char tokens[20][100], char *var_name, shell *shellV, int i) {
         }
         m++;
     }
-    // If variable is not found
-    printf("Error: Variable not found\n");
     return;
 }
 
@@ -186,7 +184,7 @@ int main(int argc, char **argv, char **env) {
     char *line, *temp1, *temp2;
     char buffer1[50];
     char buffer2[2];
-    bool dquotes, var_fail, exist_var, limit_var, expand, assigning_dquotes;
+    bool dquotes, var_fail, exist_var, limit_var, expand, assigning_dquotes, redirect, append;
 
     // Directory Stack
     char *dir_stack[20];
@@ -200,6 +198,7 @@ int main(int argc, char **argv, char **env) {
     shell *shellV = malloc(sizeof(shell) * SHELL_VARIABLES_LIMIT);
     FILE *fp1;
     FILE *fp2;
+    FILE *out_fp;
 
     init_shellV(&shellV[0], "PATH");
 
@@ -254,6 +253,8 @@ int main(int argc, char **argv, char **env) {
 
         // Tokenise and parse command line
         dquotes = false;
+        redirect = false;
+        append = false;
         i = 0;
         j = 0;
         k = 0;
@@ -265,10 +266,11 @@ int main(int argc, char **argv, char **env) {
         char tokens[20][100] = {};
         char delimiters[20] = {};
         char *buffer3[100] = {};
+        char filename[50] = {};
         char quoted_tokens[20][100] = {};
         int qt_ids[20];
 
-        while(line[i] != '\0') {
+        while(line[i] != '\0' && line[i] != '>') {
             tc_char = (int) line[i];
             // Checking if current text is in double quotes
             if(!dquotes) {
@@ -441,10 +443,32 @@ int main(int argc, char **argv, char **env) {
                 }
             }
 
+            // Checking for output redirection
+            if(line[i] == '>') {
+                redirect = true;
+                // Checking for append operator
+                if(line[i+1] == '>') {
+                    append = true;
+                    i++;
+                }
+                i++;
+                for(int x = 0; line[i] != '\0'; x++) {
+                    filename[x] = line[i];
+                    i++;
+                }
+            }
+
         }
 
         // Free allocated memory
         linenoiseFree(line);
+
+        // Checking for Output redirection
+        if(redirect) {
+            // Checking for append operator
+            if(append) out_fp = freopen(filename, "a", stdout);
+            else out_fp = freopen(filename, "w", stdout);
+        }
 
         // Checking for internal commands
 
@@ -457,6 +481,7 @@ int main(int argc, char **argv, char **env) {
             if(arguments == 2) {
                 // Free allocated memory
                 free(shellV);
+                fclose(out_fp);
                 for(int i = 0; i < 20; i++) free(dir_stack[i]);
                 printf("Exiting with exit code %d\n", atoi(tokens[1]));
                 exit(atoi(tokens[1]));
@@ -469,6 +494,7 @@ int main(int argc, char **argv, char **env) {
             else {
                 // Free allocated memory
                 free(shellV);
+                fclose(out_fp);
                 for(int i = 0; i < 20; i++) free(dir_stack[i]);
                 printf("Exiting with exit code %d\n", EXIT_SUCCESS);
                 exit(EXIT_SUCCESS);
@@ -599,29 +625,29 @@ int main(int argc, char **argv, char **env) {
             }
         }
         // Searching for External Commands
-        else {
+        else if(buffer3[0] == NULL && buffer3[1] == NULL) {
             pid_t pid = fork();
             if(pid == -1) perror("fork() failed\n");
             else if(pid == 0) {
                 char *args[20];
                 for(int i = 0; tokens[i][0] != '\000'; i++) args[i] = tokens[i];
-                if(execvp(args[0], args) == -1){
+                if(execvp(args[0], args) == -1) {
                     perror("execv() failed\n");
                     exit(EXIT_FAILURE);
                 }
             } else {
                 int status;
                 if(waitpid(pid, &status, 0) == -1) {
-                    perror("wait() failed");
+                    perror("wait() failed\n");
                     exit(EXIT_FAILURE);
                 }
             }
         }
-
+        
         fflush(stdout);
 
-    }   
+    }
 
 }
 
-// get_shellV_val("PATH", shellV)
+// CONTINUTE OUTPUT REDIRECTION
