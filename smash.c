@@ -1,182 +1,8 @@
 // =================================== CPS1012 Assignment: smash ===================================
 // Nicholas Masini 0021102H
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <dirent.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <limits.h>
 #include "linenoise.h"
-
-#define LEN 20
-#define SHELL_VARIABLES_LIMIT 30
-
-// Shell variables struct
-typedef struct Shell_Variables {
-    char *name;
-    char *val;
-} shell;
-
-// Function to check certain ranges of ASCII characters, used mostly in input parsing for alphabet, numbers etc.
-bool in_range(char input, int low, int high) {
-    if(((int) input) >= low && ((int) input) <= high) return true;
-    else return false;
-}
-
-// Function to define delimiter statement
-bool delim(char character) {
-    if(character == '|' || character == ';' || character == '<' || character == '>' || character == ' ' || character == '\t') return true;
-    else return false;
-}
-
-// Function is called on startup to initialise shell variables
-void init_shellV(shell *shellV, char *var_name) {  
-        shellV->name = var_name;
-        shellV->val = getenv(var_name); 
-}
-
-// Function used to get shell variable value based on name
-char *get_shellV_val(char *var_name, shell *shellV) {
-    for(int i = 0; shellV[i].name != NULL; i++) {
-        if(i > SHELL_VARIABLES_LIMIT) {
-            return NULL;
-        } else if(strcmp(shellV[i].name, var_name) == 0) {
-            return shellV[i].val;
-        }
-    }
-    return NULL;
-}
-
-// Function to assign variable name to value
-bool var_assign(char *var_name, char *var_value, shell *shellV, int *var_count) {
-    // Checking if variable is already initiliased
-    int l = 0;
-    bool exist_var = false;
-    bool limit_var = false;
-    // Iterating through all shell variables
-    while(shellV[l].name != NULL) {
-        if(l > SHELL_VARIABLES_LIMIT) {
-            limit_var = true;
-            break;
-        }
-        // Assinging variable new value
-        if((strcmp(shellV[l].name, var_name)) == 0) {
-            strcpy(shellV[l].val, var_value);
-            exist_var = true;
-            return true;
-        }
-        l++;
-    }
-    // If variable does not exist
-    if(!(exist_var)) {
-        // Checking if limit of shell variables is reached
-        if(limit_var) {
-            return false;
-        } 
-        // Creating new variable
-        else {
-            shellV[l].name = realloc(shellV[l].name, (strlen(var_name) + 1));
-            shellV[l].val = realloc(shellV[l].val, (strlen(var_value) + 1));
-            strcpy(shellV[l].name, var_name);
-            strcpy(shellV[l].val, var_value);
-            (*var_count)++;
-            return true;
-        }
-    }
-}
-
-// Function to expand variables inside quoted tokens
-bool q_expand(char *quoted_token, shell *shellV) {
-    char *new_token = malloc(sizeof(char) * 100);
-    bool var_exists;
-    int j = 0;
-    int k, l;
-
-    char temp_var[100];
-    char var_val[100];
-
-    *new_token = '\0';
-    
-    for(int i = 0; i < strlen(quoted_token); i++) {
-        if(quoted_token[i] == '$') {
-            var_exists = false;
-            memset(temp_var, 0, 100);
-            memset(var_val, 0, 100);
-            k = 0;
-            l = 0;
-            i++;
-            // Checking if first character is number
-            if(in_range(quoted_token[i], 48, 57)) return false;
-            // Reading variable name until unacceptable character is encountered
-            while((in_range(quoted_token[i], 48, 57) || in_range(quoted_token[i], 65, 90) || in_range(quoted_token[i], 97, 122) || quoted_token[i] == '_')) {
-                temp_var[k] = quoted_token[i];
-                k++;
-                i++;
-            }
-            temp_var[k+1] = '\0';
-            while(shellV[l].name != NULL) {
-                if(strcmp(shellV[l].name, temp_var) == 0) {
-                    strcpy(var_val, shellV[l].val);
-                    var_exists = true;
-                    break;
-                }
-                l++;
-            }
-            if(!var_exists) return false;
-            strcat(new_token, var_val);
-            j = (strlen(new_token)+1);
-            strncat(new_token, &quoted_token[i], 1);
-        } else {
-            strncat(new_token, &quoted_token[i], 1);
-            j++;
-        }
-    }
-    strcpy(quoted_token, new_token);
-    free(new_token);
-    return true;
-}
-
-// Function to expand variable
-void var_expand(char tokens[20][100], char *var_name, shell *shellV, int i) {
-    // Expanding variable
-    int m = 0;
-    while(shellV[m].name != NULL) {
-        if(strcmp(shellV[m].name, var_name) == 0) {
-            strcpy(tokens[i], shellV[m].val);
-            return;
-        }
-        m++;
-    }
-    return;
-}
-
-// Function for pushd command
-int pushd(char *new_dir, char **dir_stack, int *d_pointer) {
-    // Checking if directory exists
-    DIR *dir = opendir(new_dir);
-    if(dir) {
-        (*d_pointer)++;
-        strcpy(dir_stack[*d_pointer], new_dir);
-        return 0;
-    } else if(ENOENT == errno) return 1;
-    else return 2;
-}
-
-// Function for popd command
-bool popd(char **dir_stack, int *d_pointer) {
-    // Checking if directory stack contains only one element
-    if(*d_pointer == 0) return false;
-    else {
-        strcpy(dir_stack[*d_pointer], "");
-        (*d_pointer)--;
-        return true;
-    }
-}
+#include "functions.h"
 
 int main(int argc, char **argv, char **env) {
   
@@ -185,6 +11,7 @@ int main(int argc, char **argv, char **env) {
     char buffer1[50];
     char buffer2[2];
     bool dquotes, var_fail, exist_var, limit_var, expand, assigning_dquotes, redirect, append;
+    bool t = false;
 
     // Directory Stack
     char *dir_stack[20];
@@ -446,6 +273,7 @@ int main(int argc, char **argv, char **env) {
             // Checking for output redirection
             if(line[i] == '>') {
                 redirect = true;
+                t = true;
                 // Checking for append operator
                 if(line[i+1] == '>') {
                     append = true;
@@ -481,7 +309,7 @@ int main(int argc, char **argv, char **env) {
             if(arguments == 2) {
                 // Free allocated memory
                 free(shellV);
-                fclose(out_fp);
+                if(t) fclose(out_fp);
                 for(int i = 0; i < 20; i++) free(dir_stack[i]);
                 printf("Exiting with exit code %d\n", atoi(tokens[1]));
                 exit(atoi(tokens[1]));
@@ -494,7 +322,7 @@ int main(int argc, char **argv, char **env) {
             else {
                 // Free allocated memory
                 free(shellV);
-                fclose(out_fp);
+                if(t) fclose(out_fp);
                 for(int i = 0; i < 20; i++) free(dir_stack[i]);
                 printf("Exiting with exit code %d\n", EXIT_SUCCESS);
                 exit(EXIT_SUCCESS);
@@ -516,7 +344,7 @@ int main(int argc, char **argv, char **env) {
                 else {
                     // Changing CWD variable
                     if(getcwd(curwd, PATH_MAX) == NULL) printf("getcwd() error");
-                    if(!(var_assign("CWD", curwd, shellV, &var_count))) printf("Error when assinging value to variable");
+                    if(!(var_assign("CWD", curwd, shellV, &var_count))) printf("Error when assigning value to variable");
                     else strcpy(dir_stack[d_pointer], get_shellV_val("CWD", shellV));
                 }
             } else if(arguments > 2) {
@@ -614,10 +442,12 @@ int main(int argc, char **argv, char **env) {
             if(arguments == 1) printf("Error: Specify file to read\n");
             else if(arguments > 2) printf("Error: Too many arguments\n");
             else {
+                // Opening file
                 FILE *fp3;
                 fp3 = fopen(tokens[1], "r");
                 if(!fp3) printf("Error: File not found in CWD\n");
                 else {
+                    // Executing commands from file
                     char content[1000];
                     while(fgets(content, 1000, fp3)!=NULL) system(content);
                     fclose(fp3);
@@ -626,9 +456,11 @@ int main(int argc, char **argv, char **env) {
         }
         // Searching for External Commands
         else if(buffer3[0] == NULL && buffer3[1] == NULL) {
+            // Forking new child process
             pid_t pid = fork();
             if(pid == -1) perror("fork() failed\n");
             else if(pid == 0) {
+                // Child
                 char *args[20];
                 for(int i = 0; tokens[i][0] != '\000'; i++) args[i] = tokens[i];
                 if(execvp(args[0], args) == -1) {
@@ -636,6 +468,7 @@ int main(int argc, char **argv, char **env) {
                     exit(EXIT_FAILURE);
                 }
             } else {
+                // Parent
                 int status;
                 if(waitpid(pid, &status, 0) == -1) {
                     perror("wait() failed\n");
@@ -643,11 +476,9 @@ int main(int argc, char **argv, char **env) {
                 }
             }
         }
-        
-        fflush(stdout);
+
+        if(redirect) fclose(out_fp);
 
     }
 
 }
-
-// CONTINUTE OUTPUT REDIRECTION
