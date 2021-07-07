@@ -82,6 +82,7 @@ int main(int argc, char **argv, char **env) {
         dquotes = false;
         redirect = false;
         append = false;
+        var_fail = false;
         i = 0;
         j = 0;
         k = 0;
